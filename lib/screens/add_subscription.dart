@@ -186,8 +186,9 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                             const Duration(days: 365 * 5),
                           ),
                         );
-                        if (picked != null)
+                        if (picked != null) {
                           setState(() => _renewalDate = picked);
+                        }
                       },
                     ),
                     const SizedBox(height: 32),

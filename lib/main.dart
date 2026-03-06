@@ -46,13 +46,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final handler = ShareHandlerPlatform.instance;
 
     // Case A: App was CLOSED and opened via Share (Initial Intent)
-    try {
-      final initialMedia = await handler.getInitialSharedMedia();
-      if (initialMedia != null) {
-        _processMedia(initialMedia);
-      }
-    } catch (e) {
-      print("Error checking initial media: $e");
+    final initialMedia = await handler.getInitialSharedMedia();
+    if (initialMedia != null) {
+      _processMedia(initialMedia);
     }
 
     // --- CASE 2: Warm Start (App was in background) ---
@@ -96,9 +92,13 @@ class _HomeScreenState extends State<HomeScreen> {
     await db.delete('subscriptions', where: 'id = ?', whereArgs: [id]);
     _refreshSubs();
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Subscription deleted 🗑️')));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Subscription deleted 🗑️')),
+        );
+      }
+    });
   }
 
   @override
