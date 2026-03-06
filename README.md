@@ -1,17 +1,13 @@
-# sub_slayer
+# SubSlayer
 
-A new Flutter project.
+A privacy-focused subscription tracker built using Flutter.
 
-## Getting Started
+## Overview
 
-This project is a starting point for a Flutter application.
+SubSlayer helps you keep track of all your subscriptions in one place. It is built with a simple architecture that prioritizes your privacy.
 
-A few resources to get you started if this is your first Flutter project:
+## Features
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **Local Storage**: Uses a local SQLite database to store all your subscription data.
+- **Privacy First**: Your data **never** leaves your phone. There is no cloud syncing or external servers involved.
+- **Flutter Built**: A smooth, cross-platform experience built with Flutter.
