@@ -1,30 +1,38 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:sub_slayer/main.dart';
+import 'package:sub_slayer/helpers/text_parser.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const HomeScreen());
+  group('TextParser', () {
+    test('parses name and price in SEK correctly', () {
+      final result = TextParser.parse('You paid 129 SEK to Netflix today.');
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      expect(result['name'], 'Netflix');
+      expect(result['price'], 129.0);
+      expect(result['currency'], 'SEK');
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('parses name and price in USD correctly', () {
+      final result = TextParser.parse('Spotify 9.99USD');
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      expect(result['name'], 'Spotify');
+      expect(result['price'], 9.99);
+      expect(result['currency'], 'USD');
+    });
+
+    test('parses comma decimals correctly', () {
+      final result = TextParser.parse('Disney+ 89,00kr/mån');
+
+      expect(result['name'], 'Disney+');
+      expect(result['price'], 89.0);
+      expect(result['currency'], 'SEK');
+    });
+
+    test('returns empty name if service is not in known list', () {
+      final result = TextParser.parse('149 kr paid to UnknownService');
+
+      expect(result['name'], '');
+      expect(result['price'], 149.0);
+      expect(result['currency'], 'SEK');
+    });
   });
 }
