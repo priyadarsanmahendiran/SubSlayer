@@ -40,6 +40,22 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "tag_name=v$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Create Keystore and Properties
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          # Decode the Keystore file
+          echo $KEYSTORE_BASE64 | base64 --decode > android/app/upload-keystore.jks
+          
+          # Create key.properties file
+          echo "storePassword=$STORE_PASSWORD" > android/key.properties
+          echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+          echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+          echo "storeFile=upload-keystore.jks" >> android/key.properties
+
       - name: Build Android App Bundle (AAB)
         run: flutter build appbundle --release
 
