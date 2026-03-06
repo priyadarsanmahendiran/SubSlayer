@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -32,26 +35,33 @@ android {
     }
 
     signingConfigs {
-        release {
-            // We will create this file dynamically in GitHub Actions
+        create("release") {
+            // Load the key.properties file
             val keystoreProperties = Properties()
             val keystorePropertiesFile = rootProject.file("key.properties")
+            
             if (keystorePropertiesFile.exists()) {
                 keystoreProperties.load(FileInputStream(keystorePropertiesFile))
             }
 
-            keyAlias = keystoreProperties['keyAlias']
-            keyPassword = keystoreProperties['keyPassword']
-            storePassword = keystoreProperties['storePassword']
-            storeFile = keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            // Read values (Note the double quotes and explicit String casting)
+            keyAlias = keystoreProperties["keyAlias"] as String? ?: "upload"
+            keyPassword = keystoreProperties["keyPassword"] as String? ?: ""
+            storePassword = keystoreProperties["storePassword"] as String? ?: ""
+            
+            // Set the store file path
+            val storeFileName = keystoreProperties["storeFile"] as String?
+            storeFile = if (storeFileName != null) file(storeFileName) else null
         }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.release
+            // Assign the signing config we just created
+            signingConfig = signingConfigs.getByName("release")
+            
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
