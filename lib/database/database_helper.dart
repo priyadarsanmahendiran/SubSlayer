@@ -43,6 +43,16 @@ class DatabaseHelper {
     return await db.insert('subscriptions', row);
   }
 
+  Future<int> updateSubscription(int id, Map<String, dynamic> row) async {
+    Database db = await database;
+    return await db.update(
+      'subscriptions',
+      row,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getSubscriptions() async {
     Database db = await database;
     return await db.query('subscriptions', orderBy: 'renewalDate ASC');

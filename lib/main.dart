@@ -4,12 +4,77 @@ import 'package:share_handler/share_handler.dart';
 import './database/database_helper.dart';
 import './screens/add_subscription.dart';
 import './helpers/notification_service.dart';
+import './models/subscription_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService().init();
   runApp(
-    const MaterialApp(debugShowCheckedModeBanner: false, home: HomeScreen()),
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        primaryColor: Colors.blueGrey[300],
+        colorScheme: ColorScheme.dark(
+          primary: Colors.blueGrey[300]!,
+          secondary: Colors.blueGrey[300]!,
+          surface: const Color(0xFF1E1E1E),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF121212),
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF1E1E1E),
+          elevation: 4,
+          shadowColor: Colors.black26,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        floatingActionButtonTheme: FloatingActionButtonThemeData(
+          backgroundColor: Colors.blueGrey[300],
+          foregroundColor: const Color(0xFF121212),
+          elevation: 4,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF1E1E1E),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.blueGrey[300]!, width: 2),
+          ),
+          labelStyle: const TextStyle(color: Colors.white54),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueGrey[300],
+            foregroundColor: const Color(0xFF121212),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            textStyle: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+      home: const HomeScreen(),
+    ),
   );
 }
 
@@ -31,6 +96,61 @@ class _HomeScreenState extends State<HomeScreen> {
     _refreshSubs();
     NotificationService().requestPermissions();
     _initShareHandler();
+    _processAutoRenewals();
+  }
+
+  // --- 0. Process Auto Renewals ---
+  Future<void> _processAutoRenewals() async {
+    final data = await dbHelper.getSubscriptions();
+    DateTime now = DateTime.now();
+
+    for (var subMap in data) {
+      final sub = Subscription.fromMap(subMap);
+
+      // The day the reminder was supposed to fire
+      DateTime reminderDate = sub.renewalDate.subtract(const Duration(days: 3));
+      // The day after the reminder, which means they didn't delete it
+      DateTime checkDate = reminderDate.add(const Duration(days: 1));
+
+      if (now.isAfter(checkDate)) {
+        // Did not cancel! Auto-renew for another 30 days.
+        DateTime newRenewalDate = sub.renewalDate.add(const Duration(days: 30));
+
+        // Update database
+        Subscription updatedSub = Subscription(
+          id: sub.id,
+          name: sub.name,
+          price: sub.price,
+          currency: sub.currency,
+          renewalDate: newRenewalDate,
+        );
+        await dbHelper.updateSubscription(sub.id!, updatedSub.toMap());
+
+        // Notify user immediately that it renewed
+        await NotificationService().showImmediateNotification(
+          id:
+              sub.id! +
+              10000, // Use offset ID for alert so it doesn't cancel scheduled one
+          title: '🔄 Auto-Renewed!',
+          body: '${sub.name} wasn\'t cancelled. Renewal pushed 30 days.',
+        );
+
+        // Schedule next reminder for the new date
+        DateTime newReminderDate = newRenewalDate.subtract(
+          const Duration(days: 3),
+        );
+        await NotificationService().scheduleNotification(
+          id: sub.id!,
+          title: '🔪 Kill ${sub.name}?',
+          body:
+              '${sub.name} renews in 3 days for ${sub.price} ${sub.currency}.',
+          scheduledDate: newReminderDate,
+        );
+      }
+    }
+
+    // Refresh the UI after processing
+    _refreshSubs();
   }
 
   // --- 1. Load Data from SQLite ---
@@ -73,6 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _navigateToAddScreen({
     String? initialText,
     String? initialImagePath,
+    Subscription? existingSubscription,
   }) async {
     final result = await Navigator.push(
       context,
@@ -80,6 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => AddSubscriptionScreen(
           initialText: initialText,
           initialImagePath: initialImagePath,
+          existingSubscription: existingSubscription,
         ),
       ),
     );
@@ -124,22 +246,40 @@ class _HomeScreenState extends State<HomeScreen> {
       // Simple Dashboard Card
       body: Column(
         children: [
+          // Modern Gradient Dashboard Card
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            color: Colors.black87,
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
             child: Column(
               children: [
                 const Text(
                   "Monthly Burn",
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 1.0,
+                  ),
                 ),
+                const SizedBox(height: 8),
                 Text(
-                  "${totalBurn.toStringAsFixed(0)} ${(_subs.isNotEmpty) ? _subs[0]['currency'] : '--'}",
+                  "${totalBurn.toStringAsFixed(0)} ${(_subs.isNotEmpty) ? _subs[0]['currency'] : ''}",
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900, // Black
                   ),
                 ),
               ],
@@ -158,31 +298,84 @@ class _HomeScreenState extends State<HomeScreen> {
                       final date = DateTime.parse(item['renewalDate']);
                       final dateStr = "${date.year}-${date.month}-${date.day}";
 
-                      return Dismissible(
-                        key: Key(item['id'].toString()),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          color: Colors.red,
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        onDismissed: (direction) => _deleteSub(item['id']),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.blueGrey[100],
-                            child: Text(item['name'][0].toUpperCase()),
-                          ),
-                          title: Text(
-                            item['name'],
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text("Renews: $dateStr"),
-                          trailing: Text(
-                            "${item['price']} ${item['currency']}",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                      return Card(
+                        margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Dismissible(
+                            key: Key(item['id'].toString()),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade700,
+                              ),
+                              child: const Icon(
+                                Icons.delete_sweep,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                            onDismissed: (direction) => _deleteSub(item['id']),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: ListTile(
+                                onTap: () {
+                                  _navigateToAddScreen(
+                                    existingSubscription: Subscription.fromMap(
+                                      item,
+                                    ),
+                                  );
+                                },
+                                leading: CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).primaryColor.withOpacity(0.2),
+                                  child: Text(
+                                    item['name'][0].toUpperCase(),
+                                    style: TextStyle(
+                                      color: Theme.of(context).primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(
+                                  item['name'],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  "Renews: $dateStr",
+                                  style: const TextStyle(color: Colors.white60),
+                                ),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      "${item['price']}",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 18,
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      item['currency'],
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
