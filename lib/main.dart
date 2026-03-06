@@ -332,7 +332,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   radius: 24,
                                   backgroundColor: Theme.of(
                                     context,
-                                  ).primaryColor.withOpacity(0.2),
+                                  ).primaryColor.withValues(alpha: 0.2),
                                   child: Text(
                                     item['name'][0].toUpperCase(),
                                     style: TextStyle(
